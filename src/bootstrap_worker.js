@@ -1,8 +1,7 @@
-(function(worker, global) {
+(function(worker, global, script, params) {
   'use strict';
 
   let remoteCallbackId = 0;
-  let apis = global;
 
   function parseRemoteObject(object) {
     for (let name in object) {
@@ -26,7 +25,7 @@
     }
   }
 
-  apis.callRemoteMethod = function(name, items) {
+  global.callRemoteMethod = function(name, items) {
     worker.defineRemoteMethod(name, 
       Array.from(items).map(convertCallback));
   };
@@ -38,39 +37,39 @@
   }
 
   function createInnerMessageChannel(handler) {
-    return apis.callRemoteMethod('$.prePostMessage', [handler]);
+    return callRemoteMethod('$.prePostMessage', [handler]);
   }
   createInnerMessageChannel(handleMessageEvent);
 
-  apis.postMessage = function() {
-    return apis.callRemoteMethod('$.onmessage', arguments);
+  global.postMessage = function() {
+    return callRemoteMethod('$.onmessage', arguments);
   };
-  worker.postMessage = apis.postMessage;
+  worker.postMessage = global.postMessage;
 
-  apis.setTimeout = function(timer, interval) {
-    return apis.callRemoteMethod('setTimeout', arguments);
-  };
-
-  apis.setInterval = function(timer, interval) {
-    return apis.callRemoteMethod('setInterval', arguments);
+  global.setTimeout = function(timer, interval) {
+    return callRemoteMethod('setTimeout', arguments);
   };
 
-  apis.console = {
+  global.setInterval = function(timer, interval) {
+    return callRemoteMethod('setInterval', arguments);
+  };
+
+  global.console = {
     log: function() {
-      return apis.callRemoteMethod('$.onstdout', arguments);
+      return callRemoteMethod('$.onstdout', arguments);
     },
     debug: function() {
-      return apis.callRemoteMethod('$.onstdout', arguments);
+      return callRemoteMethod('$.onstdout', arguments);
     },
     warn: function() {
-      return apis.callRemoteMethod('$.onstderr', arguments);
+      return callRemoteMethod('$.onstderr', arguments);
     },
     error: function() {
-      return apis.callRemoteMethod('$.onstderr', arguments);
+      return callRemoteMethod('$.onstderr', arguments);
     }
   };
 
-  // apis.http = {
+  // global.http = {
   //   get: function() {
   //     return callRemoteMethod('http.get', arguments);
   //   },
@@ -79,4 +78,22 @@
   //   }
   // };
 
-})
+  function normalize(params) {
+    for (let i = 0; i < params.length; i++) {
+      const item = params[i];
+      if (typeof item === 'object') {
+        for (let key in item) {
+          const val = item[key];
+          if (!/^method:/.test(val)) {
+            continue;
+          }
+          item[key] = function() {
+            return callRemoteMethod(val, arguments);
+          };
+        }
+      }
+    }
+    return params;
+  }
+  script.apply(worker, [worker].concat(normalize(params)));
+});

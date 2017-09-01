@@ -2,7 +2,10 @@
 
 const WebWorker = require('./').WebWorker;
 
-const worker = new WebWorker((self) => {
+const worker = new WebWorker((self, f, r) => {
+  r.foo((res) => {
+    console.log(res);
+  });
   self.postMessage({foo: 'bar'});
   self.onmessage = function(data) {
     console.log('worker', data);
@@ -12,7 +15,17 @@ const worker = new WebWorker((self) => {
   }, 1000);
 }, {
   timeout: 3000,
-  defines: []
+  defines: [
+    'foobar', 
+    {
+      foo: (cb) => {
+        console.log('call from worker');
+        if (cb)
+          return cb(false);
+      },
+      bar: 'foobar'
+    }
+  ]
 });
 
 worker.onstdout = function(text) {
@@ -30,8 +43,3 @@ worker.onmessage = function(data) {
   }, 100)
   worker.postMessage(100);
 };
-
-setTimeout(() => {
-  console.log('ready to terminal');
-  worker.terminate();
-}, 5000);

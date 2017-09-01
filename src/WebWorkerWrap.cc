@@ -117,23 +117,24 @@ void WebWorkerWrap::CreateTask(void* data) {
     Local<Object> global = context->Global();
     NODE_SET_METHOD(global, "$writeln", WebWorkerWrap::Writeln);
 
-    do {
-      int argc = 2;
-      Local<Value> bootstrap_argv[argc];
-      bootstrap_argv[0] = jsworker;
-      bootstrap_argv[1] = global;
-      bootstrap->Call(context, jsworker, argc, bootstrap_argv);
+    // call bootstrap_worker.js
+    {
+      Local<Value> argv[4];
+      argv[0] = jsworker;
+      argv[1] = global;
+      argv[2] = script;
 
-      Local<Value> script_argv[1];
-      script_argv[0] = jsworker;
-      script->Call(context, jsworker, 1, script_argv);
-      // worker->Execute(script, 0, {});
-      if (try_catch.HasCaught()) {
-        // TODO
-        isolate->ThrowException(try_catch.Exception());
-        break;
-      }
-    } while (0);
+      ValueDeserializer* deserializer = new ValueDeserializer(isolate,
+        (const uint8_t*)worker->script_args.Data(), worker->script_args.ByteLength());
+      deserializer->ReadHeader(context);
+      argv[3] = deserializer->ReadValue(context).ToLocalChecked();
+      bootstrap->Call(context, jsworker, 4, argv);
+    }
+
+    if (try_catch.HasCaught()) {
+      // TODO
+      isolate->ThrowException(try_catch.Exception());
+    }
 
     // check if any callbacks
     while (true) {
@@ -174,14 +175,13 @@ void WebWorkerWrap::WorkerCallback(Local<Function> cb) {
   Local<Context> context = isolate->GetCurrentContext();
   {
     HandleScope scope(isolate);
-    Local<Context> context = isolate->GetCurrentContext();
-    Local<Value> args[1];
+    Local<Value> argv[1];
 
     ValueDeserializer* deserializer = new ValueDeserializer(isolate, 
       (const uint8_t*)callback_data.Data(), callback_data.ByteLength());
     deserializer->ReadHeader(context);
-    args[0] = deserializer->ReadValue(context).ToLocalChecked();
-    cb->Call(context, context->Global(), 1, args);
+    argv[0] = deserializer->ReadValue(context).ToLocalChecked();
+    cb->Call(context, context->Global(), 1, argv);
   }
 }
 
@@ -233,6 +233,7 @@ NAN_METHOD(WebWorkerWrap::Send) {
 
 NAN_METHOD(WebWorkerWrap::Start) {
   WebWorkerWrap* worker = Nan::ObjectWrap::Unwrap<WebWorkerWrap>(info.This());
+  worker->script_args = Local<SharedArrayBuffer>::Cast(info[0])->Externalize();
   uv_thread_create(&worker->thread, &WebWorkerWrap::CreateTask, (void*)worker);
 }
 

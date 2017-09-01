@@ -31,6 +31,7 @@ private:
   std::map<std::string, Persistent<Function>> callbacks_;
   char* callback_id;
   SharedArrayBuffer::Contents callback_data;
+  SharedArrayBuffer::Contents script_args;
 
   char* request_name;
   char* request_args;
