@@ -40,6 +40,9 @@ void WebWorkerWrap::DefineRemoteMethod(const FunctionCallbackInfo<Value>& info) 
     worker->request_args = strdup(*String::Utf8Value(serializedParams.ToLocalChecked()));
     uv_async_send(&worker->master_handle);
     uv_sem_wait(&worker->request_locker);
+    // frees the request objects
+    free(worker->request_name);
+    free(worker->request_args);
   }
 }
 
@@ -139,6 +142,8 @@ void WebWorkerWrap::CreateTask(void* data) {
     // check if any callbacks
     while (true) {
       uv_sem_wait(&worker->worker_locker);
+      if (worker->should_terminate)
+        break;
       Local<Function> cb = Local<Function>::New(isolate, worker->callbacks_[worker->callback_id]);
       worker->WorkerCallback(cb);
     }
@@ -192,6 +197,11 @@ WebWorkerWrap::WebWorkerWrap(const char* source_) {
 }
 
 WebWorkerWrap::~WebWorkerWrap() {
+  free(const_cast<char*>(source));
+  free(callback_id);
+  free(request_name);
+  free(request_args);
+  onrequest_.Reset();
   // TODO
 }
 
@@ -226,6 +236,13 @@ NAN_METHOD(WebWorkerWrap::New) {
 
 NAN_METHOD(WebWorkerWrap::Send) {
   WebWorkerWrap* worker = Nan::ObjectWrap::Unwrap<WebWorkerWrap>(info.This());
+
+  // FIXME(Yorkie): free id and data before malloc new blocks
+  if (worker->callback_id)
+    free(worker->callback_id);
+  if (worker->callback_data.ByteLength() > 0)
+    free(worker->callback_data.Data());
+
   worker->callback_id = strdup(*String::Utf8Value(info[0]));
   worker->callback_data = Local<SharedArrayBuffer>::Cast(info[1])->Externalize();
   uv_sem_post(&worker->worker_locker);
@@ -239,7 +256,9 @@ NAN_METHOD(WebWorkerWrap::Start) {
 
 NAN_METHOD(WebWorkerWrap::Terminate) {
   WebWorkerWrap* worker = Nan::ObjectWrap::Unwrap<WebWorkerWrap>(info.This());
-  uv_thread_join(&worker->thread);
+  worker->should_terminate = 1;
+  uv_sem_post(&worker->worker_locker);
+  // uv_thread_join(&worker->thread);
 }
 
 void InitModule(Handle<Object> target) {

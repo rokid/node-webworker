@@ -27,9 +27,10 @@ private:
   uv_sem_t request_locker;
 
   Isolate* worker_isolate;
+  int should_terminate = 0;
   Local<Context> worker_context;
   std::map<std::string, Persistent<Function>> callbacks_;
-  char* callback_id;
+  char* callback_id = nullptr;
   SharedArrayBuffer::Contents callback_data;
   SharedArrayBuffer::Contents script_args;
 
