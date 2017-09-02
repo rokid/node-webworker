@@ -4,7 +4,7 @@
   "description": "WebWorker API for multi-threads in Node.js",
   "main": "lib/index.js",
   "scripts": {
-    "test": "jest"
+    "test": "tape tests/*.js"
   },
   "keywords": [
     "threads",
@@ -16,5 +16,8 @@
   "dependencies": {
     "bindings": "1.3.0",
     "nan": "2.6.2"
+  },
+  "devDependencies": {
+    "tape": "4.8.0"
   }
 }

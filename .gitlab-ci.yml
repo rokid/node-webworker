@@ -1,0 +1,29 @@
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:8
+
+before_script:
+  - npm install
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+    - node_modules/
+
+# test:lint:
+#   script:
+#     - npm run lint
+
+test:
+  script:
+    - npm test
+
+# Publish tagged versions to npm
+# publish:
+#   stage: deploy
+#   only:
+#     - tags
+#     - triggers
+#   script:
+#     - npm publish

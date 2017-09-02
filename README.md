@@ -81,6 +81,12 @@ worker.onstderr = function(msg) { ... };
 $ npm install webworker --save
 ```
 
+## Tests
+
+```sh
+$ npm test
+```
+
 ## License
 
 Currently Unlicensed

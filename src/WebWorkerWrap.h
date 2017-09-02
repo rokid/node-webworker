@@ -22,7 +22,6 @@ private:
   const char* source;
   uv_thread_t thread;
   uv_async_t master_handle;
-  uv_async_t worker_handle;
   uv_sem_t worker_locker;
   uv_sem_t request_locker;
 

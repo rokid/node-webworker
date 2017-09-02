@@ -150,11 +150,14 @@ void WebWorkerWrap::CreateTask(void* data) {
     worker->worker_context->Exit();
   }
   isolate->Dispose();
+  // release 
+  uv_close((uv_handle_t*)&worker->master_handle, NULL);
+  uv_sem_destroy(&worker->worker_locker);
+  uv_sem_destroy(&worker->request_locker);
 }
 
 void WebWorkerWrap::InitThread(Isolate* isolate) {
   worker_isolate = isolate;
-  worker_handle.data = this;
   uv_sem_init(&worker_locker, 0);
   uv_sem_init(&request_locker, 0);
 }
@@ -258,7 +261,6 @@ NAN_METHOD(WebWorkerWrap::Terminate) {
   WebWorkerWrap* worker = Nan::ObjectWrap::Unwrap<WebWorkerWrap>(info.This());
   worker->should_terminate = 1;
   uv_sem_post(&worker->worker_locker);
-  // uv_thread_join(&worker->thread);
 }
 
 void InitModule(Handle<Object> target) {
