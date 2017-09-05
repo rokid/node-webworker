@@ -3,6 +3,10 @@
 const WebWorker = require('./').WebWorker;
 
 const worker = new WebWorker((self, ro) => {
+
+  const EventEmitter = require('events');
+  const path = require('path');
+
   // ro.foo((res) => {
   //   console.log(res);
   // });

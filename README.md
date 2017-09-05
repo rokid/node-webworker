@@ -75,6 +75,23 @@ worker.onstdout = function(msg) { ... };
 worker.onstderr = function(msg) { ... };
 ```
 
+#### Modular worker
+
+In web worker, you can use the following builtin modules:
+
+- `events` - the Node.js official `events` mirror module
+- `path` - the Node.js official `path` mirror module
+
+The other hand, you can also load your CommandJS file into the worker:
+
+```js
+const worker = new WebWorker(function(self) {
+  require('./tests/load-worker.js');
+});
+```
+
+Note: The default path routing is from the `process.cwd()`.
+
 ## Installation
 
 ```sh

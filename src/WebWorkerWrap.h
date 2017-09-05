@@ -35,6 +35,7 @@ private:
 
   char* request_name;
   char* request_args;
+  SharedArrayBuffer::Contents request_returns;
   Persistent<Function> onrequest_;
 
   Local<Function> Compile(const char* name, const char* source);
@@ -47,6 +48,7 @@ private:
 
   // Worker APIs
   static void Writeln(const FunctionCallbackInfo<Value>&);
+  static void Compile(const FunctionCallbackInfo<Value>&);
   static void DefineRemoteMethod(const FunctionCallbackInfo<Value>&);
   static void QueueCallback(const FunctionCallbackInfo<Value>&);
 

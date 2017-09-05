@@ -26,7 +26,7 @@
   }
 
   global.callRemoteMethod = function(name, items) {
-    worker.defineRemoteMethod(name, 
+    return worker.defineRemoteMethod(name, 
       Array.from(items).map(convertCallback));
   };
 
@@ -68,6 +68,46 @@
       return callRemoteMethod('$.onstderr', arguments);
     }
   };
+
+  const process = global.process = {
+    cwd: function() {
+      return callRemoteMethod('process.cwd', arguments);
+    },
+  };
+
+  global.fs = {
+    readFile: function() {
+      return callRemoteMethod('fs.readFile', arguments);
+    }
+  };
+
+  const builtins = {
+    'errors': './src/internal/errors.js',
+    'events': './src/internal/events.js',
+    'path': './src/internal/path.js',
+  };
+  global.require = require;
+
+  function _require(name) {
+    const module = {
+      exports: {}
+    };
+    $compile(name)(module.exports, module);
+    return module.exports;
+  }
+
+  function require(name) {
+    if (builtins[name])
+      return _require(builtins[name]);
+    else {
+      const path = _require(builtins.path);
+      if (path.isAbsolute(name)) {
+        return _require(name);
+      } else {
+        return _require(path.join(process.cwd(), name));
+      }
+    }
+  }
 
   // global.http = {
   //   get: function() {

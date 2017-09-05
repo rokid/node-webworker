@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 using namespace v8;
 using namespace node;
@@ -28,6 +29,25 @@ void WebWorkerWrap::Writeln(const FunctionCallbackInfo<Value>& info) {
   }
 }
 
+void WebWorkerWrap::Compile(const FunctionCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  {
+    HandleScope scope(isolate);
+    WebWorkerWrap* worker = reinterpret_cast<WebWorkerWrap*>(isolate->GetData(0));
+
+    char* pathname = strdup(*String::Utf8Value(info[0]));
+    std::ifstream ifs(pathname);
+    std::string source(
+      (std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+
+    std::stringstream contents;
+    contents << "(function(exports, module){" << source << "})";
+    Local<Function> compiled = worker->Compile(pathname, contents.str().c_str());
+    info.GetReturnValue().Set(compiled);
+    free(pathname);
+  }
+}
+
 void WebWorkerWrap::DefineRemoteMethod(const FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   {
@@ -40,6 +60,16 @@ void WebWorkerWrap::DefineRemoteMethod(const FunctionCallbackInfo<Value>& info) 
     worker->request_args = strdup(*String::Utf8Value(serializedParams.ToLocalChecked()));
     uv_async_send(&worker->master_handle);
     uv_sem_wait(&worker->request_locker);
+
+    {
+      // deserialize the returned string
+      ValueDeserializer* deserializer = new ValueDeserializer(isolate,
+        (const uint8_t*)worker->request_returns.Data(), worker->request_returns.ByteLength());
+      deserializer->ReadHeader(context);
+      Local<Value> val = deserializer->ReadValue(context).ToLocalChecked();
+      info.GetReturnValue().Set(val);
+    }
+
     // frees the request objects
     free(worker->request_name);
     free(worker->request_args);
@@ -119,6 +149,7 @@ void WebWorkerWrap::CreateTask(void* data) {
 
     Local<Object> global = context->Global();
     NODE_SET_METHOD(global, "$writeln", WebWorkerWrap::Writeln);
+    NODE_SET_METHOD(global, "$compile", WebWorkerWrap::Compile);
 
     // call bootstrap_worker.js
     {
@@ -174,7 +205,8 @@ void WebWorkerWrap::MasterCallback(uv_async_t* handle) {
   args[0] = Nan::New(worker->request_name).ToLocalChecked();
   args[1] = JSON::Parse(context, Nan::New(worker->request_args).ToLocalChecked()).ToLocalChecked();
 
-  onrequest->Call(worker->handle(), 2, args);
+  Local<Value> res = onrequest->Call(worker->handle(), 2, args);
+  worker->request_returns = Local<SharedArrayBuffer>::Cast(res)->Externalize();
   uv_sem_post(&worker->request_locker);
 }
 
