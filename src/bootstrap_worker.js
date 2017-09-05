@@ -119,18 +119,14 @@
   // };
 
   function normalize(params) {
-    for (let i = 0; i < params.length; i++) {
-      const item = params[i];
-      if (typeof item === 'object') {
-        for (let key in item) {
-          const val = item[key];
-          if (!/^method:/.test(val)) {
-            continue;
-          }
-          item[key] = function() {
-            return callRemoteMethod(val, arguments);
-          };
-        }
+    for (let key in params) {
+      const item = params[key];
+      if (/^method:/.test(item)) {
+        params[key] = function() {
+          return callRemoteMethod(item, arguments);
+        };
+      } else if (Array.isArray(item) || typeof item === 'object') {
+        normalize(item);
       }
     }
     return params;

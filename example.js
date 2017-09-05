@@ -2,10 +2,12 @@
 
 const WebWorker = require('./').WebWorker;
 
-const worker = new WebWorker((self, ro) => {
+const worker = new WebWorker((self, ro, ao, t) => {
 
   const EventEmitter = require('events');
   const path = require('path');
+  const r = ao.context.create();
+  console.log(t());
 
   // ro.foo((res) => {
   //   console.log(res);
@@ -26,6 +28,16 @@ const worker = new WebWorker((self, ro) => {
         return cb(false);
     },
     bar: 'foobar'
+  }, {
+    context: {
+      foo: 'bar',
+      create: function() {
+        console.log('bar created');
+        return 'magic code 32';
+      }
+    }
+  }, () => {
+    console.log('direct function call');
   }]
 });
 
