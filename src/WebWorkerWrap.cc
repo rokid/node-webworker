@@ -108,7 +108,9 @@ Local<Function> WebWorkerWrap::Compile(const char* name_, const char* source_) {
 }
 
 Local<Function> WebWorkerWrap::GetBootstrapScript() {
-  std::ifstream ifs("src/bootstrap_worker.js");
+  stringstream scriptAbsPath;
+  scriptAbsPath << root << "/src/bootstrap_worker.js";
+  std::ifstream ifs(scriptAbsPath.str());
   std::string script_source(
     (std::istreambuf_iterator<char>(ifs)), 
     std::istreambuf_iterator<char>());
@@ -153,7 +155,7 @@ void WebWorkerWrap::CreateTask(void* data) {
 
     // call bootstrap_worker.js
     {
-      Local<Value> argv[4];
+      Local<Value> argv[5];
       argv[0] = jsworker;
       argv[1] = global;
       argv[2] = script;
@@ -162,7 +164,9 @@ void WebWorkerWrap::CreateTask(void* data) {
         (const uint8_t*)worker->script_args.Data(), worker->script_args.ByteLength());
       deserializer->ReadHeader(context);
       argv[3] = deserializer->ReadValue(context).ToLocalChecked();
-      bootstrap->Call(context, jsworker, 4, argv);
+      argv[4] = Nan::New(worker->root).ToLocalChecked();
+
+      bootstrap->Call(context, jsworker, 5, argv);
     }
 
     if (try_catch.HasCaught()) {
@@ -232,6 +236,7 @@ WebWorkerWrap::WebWorkerWrap(const char* source_) {
 }
 
 WebWorkerWrap::~WebWorkerWrap() {
+  free(const_cast<char*>(root));
   free(const_cast<char*>(source));
   free(callback_id);
   free(request_name);
@@ -254,8 +259,9 @@ NAN_MODULE_INIT(WebWorkerWrap::Init) {
 }
 
 NAN_METHOD(WebWorkerWrap::New) {
-  Local<Function> script = Local<Function>::Cast(info[0]);
-  Local<Function> onrequest = Local<Function>::Cast(info[1]);
+  Local<String> root = info[0].As<String>();
+  Local<Function> script = Local<Function>::Cast(info[1]);
+  Local<Function> onrequest = Local<Function>::Cast(info[2]);
   script->SetName(Nan::New<String>("WebWorkerProgress").ToLocalChecked());
   {
     std::string f_src(*Nan::Utf8String(script->ToString()));
@@ -263,6 +269,7 @@ NAN_METHOD(WebWorkerWrap::New) {
     const char* source = f_full.c_str();
 
     WebWorkerWrap* worker = new WebWorkerWrap(source);
+    worker->root = strdup(*Nan::Utf8String(root));
     worker->onrequest_.Reset(info.GetIsolate(), onrequest);
     worker->Wrap(info.This());
     // FIXME(Yorkie): by scoping, deleting std::string object automatically.

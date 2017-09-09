@@ -20,6 +20,7 @@ private:
   void InitThread(Isolate*);
 
   const char* source;
+  const char* root;
   uv_thread_t thread;
   uv_async_t master_handle;
   uv_sem_t worker_locker;

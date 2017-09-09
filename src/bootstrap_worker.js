@@ -1,4 +1,4 @@
-(function(worker, global, script, params) {
+(function(worker, global, script, params, __dirname) {
   'use strict';
 
   let remoteCallbackId = 0;
@@ -82,9 +82,9 @@
   };
 
   const builtins = {
-    'errors': './src/internal/errors.js',
-    'events': './src/internal/events.js',
-    'path': './src/internal/path.js',
+    'errors': __dirname + '/src/internal/errors.js',
+    'events': __dirname + '/src/internal/events.js',
+    'path': __dirname + '/src/internal/path.js',
   };
   global.require = require;
 

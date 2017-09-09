@@ -1,13 +1,12 @@
 'use strict';
 
 const WebWorker = require('./').WebWorker;
-
 const worker = new WebWorker((self, ro, ao, t) => {
 
   const EventEmitter = require('events');
   const path = require('path');
   const r = ao.context.create();
-  console.log(t());
+  console.log(path);
 
   // ro.foo((res) => {
   //   console.log(res);
