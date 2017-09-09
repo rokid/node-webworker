@@ -41,7 +41,7 @@ void WebWorkerWrap::Compile(const FunctionCallbackInfo<Value>& info) {
       (std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
 
     std::stringstream contents;
-    contents << "(function(exports, module){" << source << "})";
+    contents << "(function(exports, module, require, __dirname){" << source << "})";
     Local<Function> compiled = worker->Compile(pathname, contents.str().c_str());
     info.GetReturnValue().Set(compiled);
     free(pathname);

@@ -88,23 +88,55 @@
   };
   global.require = require;
 
-  function _require(name) {
+  // load the builtins modules internally, treats all dirname to be
+  // __dirname of this source file
+  function __import__(name) {
     const module = {
-      exports: {}
+      dirname: __dirname,
+      exports: {},
     };
-    $compile(name)(module.exports, module);
+    $compile(name)(
+      module.exports, 
+      module, 
+      __import__, // require
+      __dirname); // __dirname
+    return module.exports;
+  }
+
+  function __importExternal__(name, dirname) {
+    // for external modules, allows the name without .js
+    // TODO(Yorkie): walk for package.json?
+    if (!/.js$/.test(name)) {
+      name += '.js';
+    }
+    const module = {
+      dirname,
+      exports: {},
+    };
+    $compile(name)(
+      module.exports, 
+      module, 
+      require.bind(module), // require
+      dirname);             // __dirname
     return module.exports;
   }
 
   function require(name) {
-    if (builtins[name])
-      return _require(builtins[name]);
-    else {
-      const path = _require(builtins.path);
+    const path = __import__(builtins.path);
+    const dirname = path.dirname(name);
+    if (builtins[name]) {
+      return __import__(builtins[name], dirname);
+    } else {
       if (path.isAbsolute(name)) {
-        return _require(name);
+        return __importExternal__(name, dirname);
       } else {
-        return _require(path.join(process.cwd(), name));
+        let base = process.cwd();
+        if (this && this.dirname) {
+          base = this.dirname;
+        }
+        const filename = path.join(base, name);
+        const dirname = path.dirname(filename);
+        return __importExternal__(filename, dirname);
       }
     }
   }

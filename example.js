@@ -56,10 +56,10 @@ const worker = new WebWorker((self, ro, ao, t) => {
 //   worker.postMessage(100);
 // };
 
-setInterval(() => {
-  var w = new WebWorker((self) => {
-    console.log('from lite worker')
-  }, {
-    // timeout: 5000
-  });
-}, 1000);
+// setInterval(() => {
+//   var w = new WebWorker((self) => {
+//     console.log('from lite worker')
+//   }, {
+//     // timeout: 5000
+//   });
+// }, 1000);
