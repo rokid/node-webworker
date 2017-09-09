@@ -8,6 +8,8 @@ const worker = new WebWorker((self, ro, ao, t) => {
   const r = ao.context.create();
   console.log(path);
 
+  // require('./foobar');
+
   // ro.foo((res) => {
   //   console.log(res);
   // });

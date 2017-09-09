@@ -95,7 +95,12 @@
       dirname: __dirname,
       exports: {},
     };
-    $compile(name)(
+    name = builtins[name] ? builtins[name] : name;
+    let func = $compile(name);
+    if (typeof func !== 'function')
+      throw new Error(`Cannot find module '${name}'`);
+
+    func(
       module.exports, 
       module, 
       __import__, // require
@@ -103,17 +108,22 @@
     return module.exports;
   }
 
-  function __importExternal__(name, dirname) {
+  function __importExternal__(filename, dirname, mName) {
     // for external modules, allows the name without .js
     // TODO(Yorkie): walk for package.json?
-    if (!/.js$/.test(name)) {
-      name += '.js';
+    if (!/.js$/.test(filename)) {
+      filename += '.js';
     }
     const module = {
       dirname,
       exports: {},
     };
-    $compile(name)(
+
+    const func = $compile(filename);
+    if (typeof func !== 'function')
+      throw new Error(`Cannot find module '${mName}' from ${filename}`);
+
+    func(
       module.exports, 
       module, 
       require.bind(module), // require
@@ -136,7 +146,7 @@
         }
         const filename = path.join(base, name);
         const dirname = path.dirname(filename);
-        return __importExternal__(filename, dirname);
+        return __importExternal__(filename, dirname, name);
       }
     }
   }

@@ -37,6 +37,10 @@ void WebWorkerWrap::Compile(const FunctionCallbackInfo<Value>& info) {
 
     char* pathname = strdup(*String::Utf8Value(info[0]));
     std::ifstream ifs(pathname);
+    if (!ifs) {
+      info.GetReturnValue().Set(Boolean::New(isolate, false));
+      return;
+    }
     std::string source(
       (std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
 
@@ -89,6 +93,7 @@ void WebWorkerWrap::QueueCallback(const FunctionCallbackInfo<Value>& info) {
 Local<Function> WebWorkerWrap::Compile(const char* name_, const char* source_) {
   Isolate* isolate = worker_isolate;
   EscapableHandleScope scope(isolate);
+  TryCatch try_catch;
 
   Local<Context> context = isolate->GetCurrentContext();
   Local<String> name = String::NewFromUtf8(isolate, name_, NewStringType::kNormal).ToLocalChecked();
@@ -96,13 +101,15 @@ Local<Function> WebWorkerWrap::Compile(const char* name_, const char* source_) {
   ScriptOrigin origin(name);
   MaybeLocal<Script> script = Script::Compile(context, source, &origin);
   if (script.IsEmpty()) {
-    printf("script is empty\n");
+    if (try_catch.HasCaught())
+      WebWorkerWrap::ReportError(&try_catch);
     exit(0);
   }
   Local<Value> result = script.ToLocalChecked()->Run();
   if (result.IsEmpty()) {
-    printf("function is empty\n");
-    exit(4);
+    if (try_catch.HasCaught())
+      WebWorkerWrap::ReportError(&try_catch);
+    exit(0);
   }
   return scope.Escape(Local<Function>::Cast(result));
 }
@@ -115,6 +122,15 @@ Local<Function> WebWorkerWrap::GetBootstrapScript() {
     (std::istreambuf_iterator<char>(ifs)), 
     std::istreambuf_iterator<char>());
   return Compile("bootstrap_worker.js", script_source.c_str());
+}
+
+void WebWorkerWrap::ReportError(TryCatch* try_catch) {
+  Isolate* isolate = v8::Isolate::GetCurrent();
+  Local<Context> context = isolate->GetCurrentContext();
+  {
+    Local<String> stack = Local<String>::Cast(try_catch->StackTrace());
+    printf("%s\n", *String::Utf8Value(stack));
+  }
 }
 
 void WebWorkerWrap::CreateTask(void* data) {
@@ -140,7 +156,7 @@ void WebWorkerWrap::CreateTask(void* data) {
     worker->worker_context->Enter();
 
     TryCatch try_catch;
-    try_catch.SetVerbose(true);
+    try_catch.SetVerbose(false);
 
     Local<Function> bootstrap = worker->GetBootstrapScript();
     Local<Function> script = worker->Compile("WebWorkerProgress.js", worker->source);
@@ -170,17 +186,22 @@ void WebWorkerWrap::CreateTask(void* data) {
     }
 
     if (try_catch.HasCaught()) {
-      // TODO
-      isolate->ThrowException(try_catch.Exception());
-    }
+      WebWorkerWrap::ReportError(&try_catch);
+    } else {
+      // check if any callbacks.
+      while (true) {
+        uv_sem_wait(&worker->worker_locker);
+        if (worker->should_terminate)
+          break;
+        Local<Function> cb = Local<Function>::New(isolate, worker->callbacks_[worker->callback_id]);
+        worker->WorkerCallback(cb);
 
-    // check if any callbacks
-    while (true) {
-      uv_sem_wait(&worker->worker_locker);
-      if (worker->should_terminate)
-        break;
-      Local<Function> cb = Local<Function>::New(isolate, worker->callbacks_[worker->callback_id]);
-      worker->WorkerCallback(cb);
+        // check if has error should be reported.
+        if (try_catch.HasCaught()) {
+          WebWorkerWrap::ReportError(&try_catch);
+          break;
+        }
+      }
     }
     worker->worker_context->Exit();
   }

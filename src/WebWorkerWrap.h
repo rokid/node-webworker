@@ -43,6 +43,7 @@ private:
   Local<Function> GetBootstrapScript();
   void Execute(MaybeLocal<Script> script, int argc, Local<Value> argv[]);
 
+  static void ReportError(TryCatch* try_catch);
   static void CreateTask(void*);
   static void MasterCallback(uv_async_t*);
   void WorkerCallback(Local<Function>);
