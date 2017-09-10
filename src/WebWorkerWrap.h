@@ -18,6 +18,7 @@ private:
   explicit WebWorkerWrap(const char*);
   ~WebWorkerWrap();
   void InitThread(Isolate*);
+  void Deinit();
 
   const char* source;
   const char* root;

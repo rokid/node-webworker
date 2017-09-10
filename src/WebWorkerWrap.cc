@@ -19,6 +19,10 @@ class ArrayBufferAllocator : public ArrayBuffer::Allocator {
   virtual void Free(void* data, size_t) { free(data); }
 };
 
+#define SKIP_RESULE(body) \
+  MaybeLocal<Value> res = body; \
+  (void)res;
+
 void WebWorkerWrap::Writeln(const FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   {
@@ -69,14 +73,24 @@ void WebWorkerWrap::DefineRemoteMethod(const FunctionCallbackInfo<Value>& info) 
       // deserialize the returned string
       ValueDeserializer* deserializer = new ValueDeserializer(isolate,
         (const uint8_t*)worker->request_returns.Data(), worker->request_returns.ByteLength());
-      deserializer->ReadHeader(context);
+      Maybe<bool> r = deserializer->ReadHeader(context);
+      if (!r.FromJust()) {
+        Nan::ThrowError("Unknown Header Parsing.");
+        return;
+      }
       Local<Value> val = deserializer->ReadValue(context).ToLocalChecked();
       info.GetReturnValue().Set(val);
     }
 
     // frees the request objects
-    free(worker->request_name);
-    free(worker->request_args);
+    if (worker->request_name) {
+      delete worker->request_name;
+      worker->request_name = NULL;
+    }
+    if (worker->request_args) {
+      delete worker->request_args;
+      worker->request_args = NULL;
+    }
   }
 }
 
@@ -93,13 +107,13 @@ void WebWorkerWrap::QueueCallback(const FunctionCallbackInfo<Value>& info) {
 Local<Function> WebWorkerWrap::Compile(const char* name_, const char* source_) {
   Isolate* isolate = worker_isolate;
   EscapableHandleScope scope(isolate);
-  TryCatch try_catch;
+  TryCatch try_catch(isolate);
 
   Local<Context> context = isolate->GetCurrentContext();
-  Local<String> name = String::NewFromUtf8(isolate, name_, NewStringType::kNormal).ToLocalChecked();
-  Local<String> source = String::NewFromUtf8(isolate, source_, NewStringType::kNormal).ToLocalChecked();
-  ScriptOrigin origin(name);
-  MaybeLocal<Script> script = Script::Compile(context, source, &origin);
+  MaybeLocal<String> name = Nan::New(name_);
+  MaybeLocal<String> source = Nan::New(source_);
+  ScriptOrigin origin(name.ToLocalChecked());
+  MaybeLocal<Script> script = Script::Compile(context, source.ToLocalChecked(), &origin);
   if (script.IsEmpty()) {
     if (try_catch.HasCaught())
       WebWorkerWrap::ReportError(&try_catch);
@@ -126,7 +140,7 @@ Local<Function> WebWorkerWrap::GetBootstrapScript() {
 
 void WebWorkerWrap::ReportError(TryCatch* try_catch) {
   Isolate* isolate = v8::Isolate::GetCurrent();
-  Local<Context> context = isolate->GetCurrentContext();
+  EscapableHandleScope scope(isolate);
   {
     Local<String> stack = Local<String>::Cast(try_catch->StackTrace());
     printf("%s\n", *String::Utf8Value(stack));
@@ -155,7 +169,7 @@ void WebWorkerWrap::CreateTask(void* data) {
     worker->worker_context = context;
     worker->worker_context->Enter();
 
-    TryCatch try_catch;
+    TryCatch try_catch(isolate);
     try_catch.SetVerbose(false);
 
     Local<Function> bootstrap = worker->GetBootstrapScript();
@@ -178,11 +192,14 @@ void WebWorkerWrap::CreateTask(void* data) {
 
       ValueDeserializer* deserializer = new ValueDeserializer(isolate,
         (const uint8_t*)worker->script_args.Data(), worker->script_args.ByteLength());
-      deserializer->ReadHeader(context);
-      argv[3] = deserializer->ReadValue(context).ToLocalChecked();
-      argv[4] = Nan::New(worker->root).ToLocalChecked();
-
-      bootstrap->Call(context, jsworker, 5, argv);
+      Maybe<bool> r = deserializer->ReadHeader(context);
+      if (!r.FromJust()) {
+        Nan::ThrowError("Unknown Header Parsing");
+      } else {
+        argv[3] = deserializer->ReadValue(context).ToLocalChecked();
+        argv[4] = Nan::New(worker->root).ToLocalChecked();
+        SKIP_RESULE(bootstrap->Call(context, jsworker, 5, argv));
+      }
     }
 
     if (try_catch.HasCaught()) {
@@ -207,15 +224,30 @@ void WebWorkerWrap::CreateTask(void* data) {
   }
   isolate->Dispose();
   // release 
-  uv_close((uv_handle_t*)&worker->master_handle, NULL);
-  uv_sem_destroy(&worker->worker_locker);
-  uv_sem_destroy(&worker->request_locker);
+  worker->Deinit();
 }
 
 void WebWorkerWrap::InitThread(Isolate* isolate) {
   worker_isolate = isolate;
   uv_sem_init(&worker_locker, 0);
   uv_sem_init(&request_locker, 0);
+}
+
+void WebWorkerWrap::Deinit() {
+  uv_close((uv_handle_t*)&master_handle, NULL);
+  uv_sem_destroy(&worker_locker);
+  uv_sem_destroy(&request_locker);
+  onrequest_.Reset();
+  if (root != NULL)
+    delete root;
+  if (source != NULL)
+    delete source;
+  if (callback_id != NULL)
+    delete callback_id;
+  if (request_name != NULL)
+    delete request_name;
+  if (request_args != NULL)
+    delete request_args;
 }
 
 void WebWorkerWrap::MasterCallback(uv_async_t* handle) {
@@ -244,9 +276,13 @@ void WebWorkerWrap::WorkerCallback(Local<Function> cb) {
 
     ValueDeserializer* deserializer = new ValueDeserializer(isolate, 
       (const uint8_t*)callback_data.Data(), callback_data.ByteLength());
-    deserializer->ReadHeader(context);
-    argv[0] = deserializer->ReadValue(context).ToLocalChecked();
-    cb->Call(context, context->Global(), 1, argv);
+    Maybe<bool> r = deserializer->ReadHeader(context);
+    if (!r.FromJust()) {
+      Nan::ThrowError("Unknown Header Parsing");
+    } else {
+      argv[0] = deserializer->ReadValue(context).ToLocalChecked();
+      SKIP_RESULE(cb->Call(context, context->Global(), 1, argv));
+    }
   }
 }
 
@@ -257,13 +293,7 @@ WebWorkerWrap::WebWorkerWrap(const char* source_) {
 }
 
 WebWorkerWrap::~WebWorkerWrap() {
-  free(const_cast<char*>(root));
-  free(const_cast<char*>(source));
-  free(callback_id);
-  free(request_name);
-  free(request_args);
-  onrequest_.Reset();
-  // TODO
+  Deinit();
 }
 
 NAN_MODULE_INIT(WebWorkerWrap::Init) {
