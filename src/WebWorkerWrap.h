@@ -26,6 +26,7 @@ private:
   uv_async_t master_handle;
   uv_sem_t worker_locker;
   uv_sem_t request_locker;
+  bool destroyed_ = false;
 
   Isolate* worker_isolate;
   int should_terminate = 0;

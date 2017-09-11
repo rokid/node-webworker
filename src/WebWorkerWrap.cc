@@ -234,6 +234,9 @@ void WebWorkerWrap::InitThread(Isolate* isolate) {
 }
 
 void WebWorkerWrap::Deinit() {
+  if (destroyed_) return;
+  destroyed_ = true;
+
   uv_close((uv_handle_t*)&master_handle, NULL);
   uv_sem_destroy(&worker_locker);
   uv_sem_destroy(&request_locker);
