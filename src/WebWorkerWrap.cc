@@ -223,7 +223,6 @@ void WebWorkerWrap::CreateTask(void* data) {
     worker->worker_context->Exit();
   }
   isolate->Dispose();
-  // release 
   worker->Deinit();
 }
 

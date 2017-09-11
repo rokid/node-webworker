@@ -1,7 +1,7 @@
 {
-  "name": "webworker",
-  "version": "0.5.2",
-  "description": "WebWorker API for multi-threads in Node.js",
+  "name": "webworker-ng",
+  "version": "0.6.0",
+  "description": "The Web Worker implementation based on thread for Node.js",
   "main": "lib/index.js",
   "scripts": {
     "test": "tape tests/*.js"
