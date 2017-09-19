@@ -99,8 +99,9 @@ void WebWorkerWrap::QueueCallback(const FunctionCallbackInfo<Value>& info) {
   {
     HandleScope scope(isolate);
     WebWorkerWrap* worker = reinterpret_cast<WebWorkerWrap*>(isolate->GetData(0));
-    char* id = *String::Utf8Value(info[0]);
+    char* id = strdup(*String::Utf8Value(info[0]));
     worker->callbacks_[id].Reset(isolate, Local<Function>::Cast(info[1]));
+    free(id);
   }
 }
 
