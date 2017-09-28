@@ -7,7 +7,7 @@ Node.js user-land by borrowing the concept of the standard Web Worker.
 
 ```js
 'use strict';
-const WebWorker = require('webworker').WebWorker;
+const WebWorker = require('webworker-ng').WebWorker;
 const worker = new WebWorker((self) => {
   self.postMessage('foobar', {yorkie: true});
   self.on('message', (data) => {
