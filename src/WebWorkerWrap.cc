@@ -28,7 +28,7 @@ void WebWorkerWrap::Writeln(const FunctionCallbackInfo<Value>& info) {
   {
     HandleScope scope(isolate);
     char* text = strdup(*String::Utf8Value(info[0]));
-    printf("%s\n", text);
+    fprintf(stdout, "%s\n", text);
     free(text);
   }
 }
@@ -144,7 +144,7 @@ void WebWorkerWrap::ReportError(TryCatch* try_catch) {
   EscapableHandleScope scope(isolate);
   {
     Local<String> stack = Local<String>::Cast(try_catch->StackTrace());
-    printf("%s\n", *String::Utf8Value(stack));
+    fprintf(stderr, "%s\n", *String::Utf8Value(stack));
   }
 }
 
