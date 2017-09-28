@@ -151,6 +151,7 @@
     }
   }
 
+  // TODO(Yazhong): disable http method
   // global.http = {
   //   get: function() {
   //     return callRemoteMethod('http.get', arguments);
