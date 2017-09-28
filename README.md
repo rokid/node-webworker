@@ -95,7 +95,7 @@ Note: The default path routing is from the `process.cwd()`.
 ## Installation
 
 ```sh
-$ npm install webworker --save
+$ npm install webworker-ng --save
 ```
 
 ## Tests
