@@ -9,16 +9,6 @@ using namespace v8;
 using namespace node;
 using namespace std;
 
-class ArrayBufferAllocator : public ArrayBuffer::Allocator {
- public:
-  virtual void* Allocate(size_t length) {
-    void* data = AllocateUninitialized(length);
-    return data == NULL ? data : memset(data, 0, length);
-  }
-  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
-  virtual void Free(void* data, size_t) { free(data); }
-};
-
 #define SKIP_RESULE(body) \
   MaybeLocal<Value> res = body; \
   (void)res;
@@ -151,9 +141,9 @@ void WebWorkerWrap::ReportError(TryCatch* try_catch) {
 void WebWorkerWrap::CreateTask(void* data) {
   WebWorkerWrap* worker = reinterpret_cast<WebWorkerWrap*>(data);
 
-  ArrayBufferAllocator allocator;
+  ArrayBuffer::Allocator* allocator = ArrayBuffer::Allocator::NewDefaultAllocator();
   Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = &allocator;
+  create_params.array_buffer_allocator = allocator;
 
   // TODO(Yorkie): Isolate::New takes long time, the isolations 
   // pool is required for performance.
