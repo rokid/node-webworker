@@ -26,7 +26,7 @@ worker.onmessage = function(data) {
 
 ## APIs
 
-The node-webworker provides the class `WebWorker` for creating a seperate worker.
+The node-webworker provides the class `WebWorker` for creating a separate worker.
 
 #### Creating a webworker script
 
