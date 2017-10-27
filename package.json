@@ -4,7 +4,7 @@
   "description": "The Web Worker implementation based on thread for Node.js",
   "main": "lib/index.js",
   "scripts": {
-    "test": "tape tests/*.js"
+    "test": "nyc --reporter=lcov tape tests/*.js"
   },
   "keywords": [
     "threads",
@@ -19,6 +19,15 @@
     "nan": "2.6.2"
   },
   "devDependencies": {
-    "tape": "4.8.0"
+    "tape": "4.8.0",
+    "nyc": "^11.2.1"
+  },
+  "nyc": {
+    "exclude": [
+      "build",
+      "node_modules",
+      "coverage",
+      "tests/*.js"
+    ]
   }
 }
