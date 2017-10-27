@@ -1,4 +1,4 @@
-# node-webworker-ng(3)
+# node-webworker
 
 [Web Worker][] implementation for Node.js. This module provides multi-threads programming for
 Node.js user-land by borrowing the concept of the standard Web Worker.
