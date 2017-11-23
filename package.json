@@ -1,6 +1,6 @@
 {
   "name": "webworker-ng",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "The Web Worker implementation based on thread for Node.js",
   "main": "lib/index.js",
   "scripts": {
