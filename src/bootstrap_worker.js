@@ -20,6 +20,12 @@
         item.apply(null, objects);
       });
       return `callback:${id}`;
+    } else if (item instanceof Error) {
+      const errData = {
+        message: item.message,
+        stack: item.stack,
+      };
+      return `error:${JSON.stringify(errData)}`;
     } else {
       return item;
     }
