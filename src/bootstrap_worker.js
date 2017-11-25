@@ -56,8 +56,16 @@
     return callRemoteMethod('setTimeout', arguments);
   };
 
+  global.clearTimeout = function(timer, interval) {
+    return callRemoteMethod('clearTimeout', arguments);
+  };
+
   global.setInterval = function(timer, interval) {
     return callRemoteMethod('setInterval', arguments);
+  };
+
+  global.clearInterval = function(timer) {
+    return callRemoteMethod('clearInterval', arguments);
   };
 
   global.console = {
