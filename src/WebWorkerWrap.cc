@@ -322,6 +322,8 @@ NAN_METHOD(WebWorkerWrap::New) {
 
 NAN_METHOD(WebWorkerWrap::Send) {
   WebWorkerWrap* worker = Nan::ObjectWrap::Unwrap<WebWorkerWrap>(info.This());
+  if (worker->destroyed_)
+    return Nan::ThrowError("worker is destroyed");
 
   // FIXME(Yorkie): free id and data before malloc new blocks
   if (worker->callback_id)

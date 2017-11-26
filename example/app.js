@@ -25,7 +25,6 @@ worker.onmessage = function(data) {
   setTimeout(() => {
     worker.postMessage({ host: true });
   }, 100);
-
 };
 
 {
@@ -40,6 +39,9 @@ worker.onmessage = function(data) {
     defines: [
       function postMessage2worker(msg) {
         worker.postMessage(`from wrong worker: ${msg}`);
+        if (msg === 'end') {
+          worker.terminate();
+        }
       },
       function check() {
         return shouldStopWorker2;
