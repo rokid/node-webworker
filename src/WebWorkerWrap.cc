@@ -297,6 +297,8 @@ NAN_MODULE_INIT(WebWorkerWrap::Init) {
   Nan::SetPrototypeMethod(tpl, "send", Send);
   Nan::SetPrototypeMethod(tpl, "start", Start);
   Nan::SetPrototypeMethod(tpl, "terminate", Terminate);
+  Nan::SetAccessor(tpl->InstanceTemplate(), 
+    Nan::New<String>("destroyed").ToLocalChecked(), GetDestroyed);
 
   Local<Function> func = Nan::GetFunction(tpl).ToLocalChecked();
   Nan::Set(target, Nan::New("WebWorkerWrap").ToLocalChecked(), func);
@@ -346,6 +348,15 @@ NAN_METHOD(WebWorkerWrap::Terminate) {
   WebWorkerWrap* worker = Nan::ObjectWrap::Unwrap<WebWorkerWrap>(info.This());
   worker->should_terminate = 1;
   uv_sem_post(&worker->worker_locker);
+}
+
+NAN_PROPERTY_GETTER(WebWorkerWrap::GetDestroyed) {
+  WebWorkerWrap* worker = Nan::ObjectWrap::Unwrap<WebWorkerWrap>(info.This());
+  if (worker->destroyed_) {
+    info.GetReturnValue().Set(Nan::True());
+  } else {
+    info.GetReturnValue().Set(Nan::False());
+  }
 }
 
 void InitModule(Handle<Object> target) {
