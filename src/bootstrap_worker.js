@@ -4,11 +4,18 @@
   let remoteCallbackId = 0;
 
   function parseRemoteObject(object) {
-    for (let name in object) {
-      let prop = object[name];
-      if (/^method:/.test(prop)) {
-        object[name] = (...args) => callRemoteMethod(prop, args);
+    if (object.type === 'Error') {
+      let err = new Error(object.message);
+      err.stack = object.stack;
+      return err;
+    } else {
+      for (let name in object) {
+        let prop = object[name];
+        if (/^method:/.test(prop)) {
+          object[name] = (...args) => callRemoteMethod(prop, args);
+        }
       }
+      return object;
     }
   }
 
@@ -16,12 +23,13 @@
     if (typeof item === 'function') {
       const id = remoteCallbackId++;
       worker.queueCallback(id, (objects) => {
-        objects.forEach(parseRemoteObject);
-        item.apply(null, objects);
+        item.apply(null, 
+          objects.map(parseRemoteObject));
       });
       return `callback:${id}`;
     } else if (item instanceof Error) {
       const errData = {
+        name: item.name,
         message: item.message,
         stack: item.stack,
       };
