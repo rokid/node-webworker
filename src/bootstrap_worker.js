@@ -4,7 +4,7 @@
   let remoteCallbackId = 0;
 
   function parseRemoteObject(object) {
-    if (object.type === 'Error') {
+    if (object && object.type === 'Error') {
       let err = new Error(object.message);
       err.stack = object.stack;
       return err;
