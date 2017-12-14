@@ -61,5 +61,6 @@ private:
   static NAN_METHOD(Send);
   static NAN_METHOD(Start);
   static NAN_METHOD(Terminate);
+  static NAN_METHOD(ForceTerminate);
   static NAN_PROPERTY_GETTER(GetDestroyed);
 };

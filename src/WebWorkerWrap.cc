@@ -297,6 +297,7 @@ NAN_MODULE_INIT(WebWorkerWrap::Init) {
   Nan::SetPrototypeMethod(tpl, "send", Send);
   Nan::SetPrototypeMethod(tpl, "start", Start);
   Nan::SetPrototypeMethod(tpl, "terminate", Terminate);
+  Nan::SetPrototypeMethod(tpl, "forceTerminate", ForceTerminate);
   Nan::SetAccessor(tpl->InstanceTemplate(), 
     Nan::New<String>("destroyed").ToLocalChecked(), GetDestroyed);
 
@@ -348,6 +349,14 @@ NAN_METHOD(WebWorkerWrap::Terminate) {
   WebWorkerWrap* worker = Nan::ObjectWrap::Unwrap<WebWorkerWrap>(info.This());
   worker->should_terminate = 1;
   uv_sem_post(&worker->worker_locker);
+}
+
+NAN_METHOD(WebWorkerWrap::ForceTerminate) {
+  WebWorkerWrap* worker = Nan::ObjectWrap::Unwrap<WebWorkerWrap>(info.This());
+  if (worker->destroyed_)
+    return;
+  worker->should_terminate = 1;
+  uv_thread_join(&worker->thread);
 }
 
 NAN_PROPERTY_GETTER(WebWorkerWrap::GetDestroyed) {
