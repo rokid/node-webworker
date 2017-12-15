@@ -30,6 +30,7 @@ private:
 
   Isolate* worker_isolate;
   int should_terminate = 0;
+  int worker_isolate_exited = 0;
   Local<Context> worker_context;
   std::map<std::string, Persistent<Function>> callbacks_;
   char* callback_id = nullptr;

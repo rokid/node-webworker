@@ -1,6 +1,7 @@
 #include "src/WebWorkerWrap.h"
 #include <uv.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -140,7 +141,6 @@ void WebWorkerWrap::ReportError(TryCatch* try_catch) {
 
 void WebWorkerWrap::CreateTask(void* data) {
   WebWorkerWrap* worker = reinterpret_cast<WebWorkerWrap*>(data);
-
   ArrayBuffer::Allocator* allocator = ArrayBuffer::Allocator::NewDefaultAllocator();
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator;
@@ -213,7 +213,7 @@ void WebWorkerWrap::CreateTask(void* data) {
     }
     worker->worker_context->Exit();
   }
-  isolate->Dispose();
+  worker->worker_isolate->Dispose();
   worker->Deinit();
 }
 
@@ -250,7 +250,7 @@ void WebWorkerWrap::MasterCallback(uv_async_t* handle) {
   Isolate* isolate = Isolate::GetCurrent();
   Local<Context> context = isolate->GetCurrentContext();
   Local<Function> onrequest = Local<Function>::New(isolate, worker->onrequest_);
-  
+
   Local<Value> args[2];
   args[0] = Nan::New(worker->request_name).ToLocalChecked();
   args[1] = JSON::Parse(context, Nan::New(worker->request_args).ToLocalChecked()).ToLocalChecked();
@@ -355,8 +355,7 @@ NAN_METHOD(WebWorkerWrap::ForceTerminate) {
   WebWorkerWrap* worker = Nan::ObjectWrap::Unwrap<WebWorkerWrap>(info.This());
   if (worker->destroyed_)
     return;
-  worker->should_terminate = 1;
-  uv_thread_join(&worker->thread);
+  pthread_cancel(worker->thread);
 }
 
 NAN_PROPERTY_GETTER(WebWorkerWrap::GetDestroyed) {
