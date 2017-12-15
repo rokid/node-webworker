@@ -47,6 +47,10 @@ void WebWorkerWrap::Compile(const FunctionCallbackInfo<Value>& info) {
   }
 }
 
+void WebWorkerWrap::CheckPoint(const FunctionCallbackInfo<Value>& info) {
+  pthread_testcancel();
+}
+
 void WebWorkerWrap::DefineRemoteMethod(const FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   {
@@ -139,7 +143,20 @@ void WebWorkerWrap::ReportError(TryCatch* try_catch) {
   }
 }
 
+void WebWorkerWrap::CleanupThread(void* data) {
+  WebWorkerWrap* worker = reinterpret_cast<WebWorkerWrap*>(data);
+  if (worker->worker_isolate_exited == 0) {
+    worker->worker_isolate->Exit();
+  }
+  worker->worker_isolate->Dispose();
+  worker->Deinit();
+}
+
 void WebWorkerWrap::CreateTask(void* data) {
+  pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+  pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+  pthread_testcancel();
+
   WebWorkerWrap* worker = reinterpret_cast<WebWorkerWrap*>(data);
   ArrayBuffer::Allocator* allocator = ArrayBuffer::Allocator::NewDefaultAllocator();
   Isolate::CreateParams create_params;
@@ -148,6 +165,8 @@ void WebWorkerWrap::CreateTask(void* data) {
   // TODO(Yorkie): Isolate::New takes long time, the isolations 
   // pool is required for performance.
   Isolate* isolate = Isolate::New(create_params);
+  pthread_cleanup_push(WebWorkerWrap::CleanupThread, worker);
+
   worker->InitThread(isolate);
   {
     Locker locker(isolate);
@@ -173,6 +192,7 @@ void WebWorkerWrap::CreateTask(void* data) {
     Local<Object> global = context->Global();
     NODE_SET_METHOD(global, "$writeln", WebWorkerWrap::Writeln);
     NODE_SET_METHOD(global, "$compile", WebWorkerWrap::Compile);
+    NODE_SET_METHOD(global, "$checkpoint", WebWorkerWrap::CheckPoint);
 
     // call bootstrap_worker.js
     {
@@ -187,6 +207,7 @@ void WebWorkerWrap::CreateTask(void* data) {
       if (!r.FromJust()) {
         Nan::ThrowError("Unknown Header Parsing");
       } else {
+
         argv[3] = deserializer->ReadValue(context).ToLocalChecked();
         argv[4] = Nan::New(worker->root).ToLocalChecked();
         SKIP_RESULE(bootstrap->Call(context, jsworker, 5, argv));
@@ -212,9 +233,9 @@ void WebWorkerWrap::CreateTask(void* data) {
       }
     }
     worker->worker_context->Exit();
+    worker->worker_isolate_exited = 1;
   }
-  worker->worker_isolate->Dispose();
-  worker->Deinit();
+  pthread_cleanup_pop(1);
 }
 
 void WebWorkerWrap::InitThread(Isolate* isolate) {

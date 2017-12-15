@@ -47,6 +47,7 @@ private:
   void Execute(MaybeLocal<Script> script, int argc, Local<Value> argv[]);
 
   static void ReportError(TryCatch* try_catch);
+  static void CleanupThread(void*);
   static void CreateTask(void*);
   static void MasterCallback(uv_async_t*);
   void WorkerCallback(Local<Function>);
@@ -54,6 +55,7 @@ private:
   // Worker APIs
   static void Writeln(const FunctionCallbackInfo<Value>&);
   static void Compile(const FunctionCallbackInfo<Value>&);
+  static void CheckPoint(const FunctionCallbackInfo<Value>&);
   static void DefineRemoteMethod(const FunctionCallbackInfo<Value>&);
   static void QueueCallback(const FunctionCallbackInfo<Value>&);
 
